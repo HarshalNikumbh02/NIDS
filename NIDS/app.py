@@ -1,6 +1,6 @@
 # ---------------- IMPORTS ----------------
-from flask import Flask, request, render_template, redirect, session, jsonify, flash
-import os
+from flask import Flask, request, render_template, redirect, session, jsonify, flash, send_file
+import os, io
 import pandas as pd
 import numpy as np
 import joblib
@@ -8,6 +8,9 @@ from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 import bcrypt
 from datetime import datetime, timezone, timedelta
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+
 
 # Define the IST timezone right below the imports
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -317,6 +320,14 @@ def predict():
                 "time":    datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
             })
 
+        # --- SAVE TO SESSION FOR MANUAL PDF REPORT ---
+        session['latest_threat'] = {
+            "mode": "manual",
+            "type": label,
+            "status": "SAFE" if status == "safe" else "ATTACK",
+            "time": datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+        }
+
         return jsonify({
             "success": True,
             "output": label,
@@ -379,6 +390,25 @@ def upload_csv():
                 "status":  "SAFE" if normal >= attacks else "ATTACK",
                 "time":    datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
             })
+
+        # --- SAVE TO SESSION FOR BULK PDF REPORT ---
+        dominant_threat = "Normal Traffic"
+        if attacks > 0:
+            # Find the most frequent attack to generate the correct playbook
+            attack_counts = {k: v for k, v in counts.items() if k != "Normal Traffic"}
+            if attack_counts:
+                dominant_threat = max(attack_counts, key=attack_counts.get)
+
+        session['latest_threat'] = {
+            "mode": "bulk",
+            "total": total,
+            "safe": normal,
+            "threats": attacks,
+            "counts": counts,  # Saves the whole table
+            "dominant": dominant_threat,
+            "status": "SAFE" if attacks == 0 else "ATTACK",
+            "time": datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+        }
 
         return jsonify({
             "success": True,
@@ -459,6 +489,124 @@ def api_data():
         "attack_stats": attack_stats,
         "logs":         logs_data
     })
+
+@app.route('/download_pdf')
+def download_pdf():
+    threat = session.get('latest_threat')
+    if not threat:
+        return "No threat data found. Please run a detection first.", 404
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # --- 1. HEADER ---
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(50, height - 50, "NIDS SECURITY INCIDENT REPORT")
+    c.setLineWidth(2)
+    c.line(50, height - 60, width - 50, height - 60)
+
+    # --- 2. ALERT STATUS & SUMMARY ---
+    if threat['status'] == "SAFE":
+        c.setFillColorRGB(0, 0.6, 0) # Green
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(50, height - 90, "SYSTEM STATUS: CLEAR (NO THREAT)")
+    else:
+        c.setFillColorRGB(0.8, 0, 0) # Red
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(50, height - 90, "ALERT: INTRUSION VECTOR DETECTED")
+
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica", 11)
+    c.drawString(50, height - 115, f"Timestamp (IST): {threat['time']}")
+
+    # Print Bulk Stats OR Manual Stats
+    if threat['mode'] == "bulk":
+        c.drawString(50, height - 135, f"Total Assessed Instances: {threat['total']}   |   Safe: {threat['safe']}   |   Critical Threats: {threat['threats']}")
+        dominant_attack = threat['dominant']
+    else:
+        c.drawString(50, height - 135, "Analysis Mode: Single Vector (Manual Input)")
+        c.drawString(50, height - 155, f"Classification: {threat['type']}")
+        dominant_attack = threat['type']
+
+    # --- 3. MITIGATION PLAYBOOK & COMMANDS ---
+    if threat['status'] == "ATTACK":
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, height - 190, "Recommended Response Playbook")
+
+        # Automatically assign the correct commands based on the attack type
+        desc = "Quarantine affected system and review network logs."
+        cmd = ["sudo ufw enable", "sudo fail2ban-client status"]
+
+        if dominant_attack == "DoS Attack":
+            desc = "Drop massive incoming connection spikes and rate-limit IP ranges."
+            cmd = ["sudo iptables -A INPUT -p tcp --dport 80 -m limit --limit 25/minute -j ACCEPT", "sudo ufw deny from <ATTACKER_IP>"]
+        elif dominant_attack == "Probe Attack":
+            desc = "Enforce strict port hiding rules, block network scouting scans, and drop incoming telemetry signatures."
+            cmd = ["sudo ufw default deny incoming", "sudo iptables -A INPUT -m psd --psd-weight-threshold 21 --psd-delay-threshold 300 -j DROP"]
+        elif dominant_attack in ["R2L Attack", "U2R Attack"]:
+            desc = "Immediately revoke compromised SSH keys, terminate active suspicious sessions, and isolate the host."
+            cmd = ["sudo pkill -KILL -u <COMPROMISED_USER>", "sudo ufw deny out to any", "sudo passwd -l <COMPROMISED_USER>"]
+
+        c.setFont("Helvetica", 10)
+        c.drawString(50, height - 210, desc)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(50, height - 235, "DEPLOYMENT MITIGATION COMMANDS:")
+
+        # Draw a grey rectangle background for the code block
+        c.setFillColorRGB(0.95, 0.95, 0.95)
+        c.rect(50, height - 295, width - 100, 50, fill=1, stroke=1)
+        
+        # Write the terminal commands inside the grey box
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont("Courier", 10)
+        y_pos = height - 265
+        for line in cmd:
+            c.drawString(60, y_pos, line)
+            y_pos -= 15
+
+    # --- 4. BULK DATA TABLE (Only draws if a CSV was uploaded) ---
+    if threat['mode'] == "bulk":
+        start_y = height - 340 if threat['status'] == "ATTACK" else height - 180
+
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, start_y, "Bulk Threat Assessment Breakdown")
+
+        # Table Header Row (Dark Blue Background)
+        start_y -= 20
+        c.setFillColorRGB(0.1, 0.2, 0.3)
+        c.rect(50, start_y - 15, width - 100, 25, fill=1, stroke=1)
+        c.setFillColorRGB(1, 1, 1) # White Text
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(70, start_y - 7, "Attack Classification Label")
+        c.drawString(320, start_y - 7, "Aggregated Vector Count")
+
+        # Table Data Rows
+        c.setFillColorRGB(0, 0, 0) # Black Text
+        c.setFont("Helvetica", 10)
+        start_y -= 35
+
+        for attack_type, count in threat['counts'].items():
+            c.drawString(70, start_y, str(attack_type))
+            c.drawString(320, start_y, str(count))
+            
+            # Draw a subtle line under each row
+            c.setLineWidth(0.5)
+            c.setFillColorRGB(0.8, 0.8, 0.8)
+            c.line(50, start_y - 8, width - 50, start_y - 8)
+            c.setFillColorRGB(0, 0, 0) # Reset to black for next text
+            
+            start_y -= 25
+
+    # --- 5. FOOTER ---
+    c.setFont("Helvetica-Oblique", 9)
+    c.setFillColorRGB(0.5, 0.5, 0.5)
+    c.drawString(50, 40, "Automated forensic report generated by NIDS SOC ML Engine.")
+
+    c.save()
+    buffer.seek(0)
+    safe_time = threat['time'].replace(':', '-')
+    return send_file(buffer, as_attachment=True, download_name=f"Threat_Report_{safe_time}.pdf", mimetype='application/pdf')
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":

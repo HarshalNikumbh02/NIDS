@@ -267,6 +267,12 @@
 
             </div>
             <button type="submit">Analyze Network Traffic</button>
+            <div style="text-align: center; margin-top: 25px;">
+                <a href="/download_pdf" target="_blank"
+                    style="background-color: #e63946; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-family: sans-serif; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    📄 Download Threat Report (.PDF)
+                </a>
+            </div>
         </form>
 
         <hr>
@@ -312,6 +318,10 @@
     <script>
         // Prevent Page Reload & Handle Form via AJAX
         document.getElementById("manualForm").addEventListener("submit", function (e) {
+            if (!this.checkValidity()) {
+        this.reportValidity(); // This forces the browser "Please fill out this field" pop-up
+        return; // Stops the code from running further
+    }
             e.preventDefault();
             let formData = new FormData(this);
             hideResults();
