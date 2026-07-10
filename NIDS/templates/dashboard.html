@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIDS SOC Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{
+margin:0;
+font-family:'Segoe UI';
+background:#0a0f1c;
+color:white;
+display:flex;
+}
+
+/* Sidebar */
+.sidebar{
+width:230px;
+background:#020617;
+height:100vh;
+padding:20px;
+box-shadow:0 0 20px cyan;
+}
+.sidebar h2{text-align:center;color:cyan;}
+.sidebar a{
+display:block;
+padding:12px;
+margin-top:10px;
+color:white;
+text-decoration:none;
+border-radius:6px;
+transition:0.3s;
+}
+.sidebar a:hover{background:cyan;color:black;}
+
+/* Main */
+.main{flex:1;padding:30px;}
+
+/* Alert Dynamic Box */
+.alert{
+padding:15px;
+border-left:6px solid lime;
+background:#001f1f;
+margin-bottom:20px;
+font-weight:bold;
+border-radius:8px;
+transition: border-left-color 0.3s ease;
+}
+
+/* Cards */
+.cards{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:25px;}
+.card{
+flex:1;
+min-width:200px;
+background:#111827;
+padding:20px;
+border-radius:12px;
+text-align:center;
+box-shadow:0 0 20px cyan;
+transition:0.3s;
+}
+.card:hover{transform:scale(1.05);}
+.card h2{color:cyan;}
+
+/* Charts */
+.charts{display:flex;gap:20px;flex-wrap:wrap;}
+.chart-box{
+flex:1;
+min-width:300px;
+background:#111827;
+padding:20px;
+border-radius:12px;
+box-shadow:0 0 20px cyan;
+}
+
+/* Table */
+table{
+width:100%;
+margin-top:20px;
+border-collapse:collapse;
+background:white;
+color:black;
+border-radius:10px;
+overflow:hidden;
+}
+th{background:#0ea5e9;color:white;}
+th, td{padding:10px;border:1px solid #ddd;text-align:center;}
+
+.safe{ color:lime; font-weight:bold; }
+.attack{ color:red; font-weight:bold; }
+</style>
+</head>
+
+<body>
+<div class="sidebar">
+<h2>NIDS SOC</h2>
+<a href="/">Home</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/detect">Detection</a>
+<a href="/logout">Logout</a>
+</div>
+
+<div class="main">
+<h1>🛡️ Cyber Security Dashboard</h1>
+
+<div class="alert" id="alertBox">Initializing Network Scan...</div>
+
+<div class="cards">
+<div class="card">
+<h2>Total Traffic</h2>
+<p id="total">0</p>
+</div>
+<div class="card">
+<h2>Normal Traffic</h2>
+<p id="normal">0</p>
+</div>
+<div class="card">
+<h2>Attacks</h2>
+<p id="attacks">0</p>
+</div>
+</div>
+
+<div class="charts">
+<div class="chart-box">
+<h3>Attack Distribution</h3>
+<canvas id="attackChart"></canvas>
+</div>
+<div class="chart-box">
+<h3>Traffic Overview</h3>
+<canvas id="trafficChart"></canvas>
+</div>
+</div>
+
+<h2>📜 Intrusion Logs</h2>
+<table id="logTable">
+<thead>
+<tr>
+<th>Time (UTC)</th>
+<th>Attack Vector</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<script>
+let attackChart = new Chart(document.getElementById("attackChart"), {
+type: "bar",
+data: {
+labels: ["Normal","DoS","Probe","R2L","U2R"],
+datasets: [{
+label: "Attack Count",
+data: [0,0,0,0,0],
+backgroundColor: ["#22c55e","#ef4444","#f97316","#eab308","#a855f7"]
+}]
+}
+});
+
+let trafficChart = new Chart(document.getElementById("trafficChart"), {
+type: "line",
+data: {
+labels: ["Total","Normal","Attack"],
+datasets: [{
+label: "Traffic Volume",
+data: [0,0,0],
+borderColor: "#06b6d4",
+fill:false,
+tension:0.4
+}]
+}
+});
+
+function updateDashboard(){
+    fetch(`/api/data?t=${new Date().getTime()}`, {
+        method: "GET",
+        credentials: "same-origin",
+        headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("total").innerText = data.total || 0;
+        document.getElementById("normal").innerText = data.normal || 0;
+        document.getElementById("attacks").innerText = data.attacks || 0;
+
+        let alertBox = document.getElementById("alertBox");
+        if(data.logs && data.logs.length > 0){
+            let latest = data.logs[0];
+            if(latest.attack !== "Normal Traffic"){
+                alertBox.style.borderLeft = "6px solid red";
+                alertBox.innerHTML = "🚨 ATTACK DETECTED: " + latest.attack;
+            } else {
+                alertBox.style.borderLeft = "6px solid lime";
+                alertBox.innerHTML = "✅ System Secure: Passive Monitoring Active";
+            }
+        }
+
+        attackChart.data.datasets[0].data = [
+            data.attack_stats?.Normal || 0,
+            data.attack_stats?.DoS || 0,
+            data.attack_stats?.Probe || 0,
+            data.attack_stats?.R2L || 0,
+            data.attack_stats?.U2R || 0
+        ];
+        attackChart.update();
+
+        trafficChart.data.datasets[0].data = [
+            data.total || 0,
+            data.normal || 0,
+            data.attacks || 0
+        ];
+        trafficChart.update();
+
+        let tbody = document.querySelector("#logTable tbody");
+        tbody.innerHTML = "";
+        (data.logs || []).forEach(log => {
+            let statusClass = log.status === "Blocked" ? "attack" : "safe";
+            tbody.innerHTML += `<tr><td>${log.time}</td><td>${log.attack}</td><td class="${statusClass}">${log.status}</td></tr>`;
+        });
+    })
+    .catch(err => console.log("Error:", err));
+}
+
+// Auto-poll the API every 2 seconds
+setInterval(updateDashboard, 2000);
+updateDashboard();
+</script>
+
+</body>
+</html>

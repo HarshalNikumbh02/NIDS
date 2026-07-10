@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>NIDS Detection</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Segoe UI, Arial;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a, #020617);
+            color: white;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: #111827;
+            padding: 24px;
+            border-radius: 14px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.25);
+        }
+
+        h1 {
+            text-align: center;
+            color: #22d3ee;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #60a5fa;
+            margin: 16px 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #cbd5f5;
+        }
+
+        input,
+        select {
+            width: 100%;
+            height: 36px;
+            padding: 6px;
+            border-radius: 6px;
+            border: none;
+            background: #e5e7eb;
+            color: black;
+        }
+
+        button {
+            width: 100%;
+            max-width: 260px;
+            height: 38px;
+            margin: 18px auto 0;
+            display: block;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s ease;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        hr {
+            margin: 20px 0;
+            border: 1px solid #334155;
+        }
+
+        /* NEW: Result Box Styling */
+        .result-box {
+            margin-top: 15px;
+            padding: 20px;
+            background: #0f172a;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #1e293b;
+            display: none;
+        }
+
+        .safe {
+            color: #22c55e;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        .danger {
+            color: #ef4444;
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        /* NEW: Terminal Box Styling */
+        .playbook-card {
+            margin-top: 15px;
+            background: #0b1329;
+            border-left: 5px solid #22d3ee;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: left;
+            display: none;
+        }
+
+        .playbook-card h4 {
+            color: #22d3ee;
+            margin-bottom: 8px;
+        }
+
+        .terminal-box {
+            background: #020617;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 12px;
+            border-radius: 5px;
+            color: #a7f3d0;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            border: 1px solid #334155;
+        }
+
+        .table-box {
+            margin-top: 20px;
+            background: #020617;
+            border-radius: 10px;
+            padding: 15px;
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border: 1px solid #1e293b;
+            text-align: center;
+        }
+
+        th {
+            background: #1e293b;
+            color: #38bdf8;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .nav-buttons a {
+            color: #22d3ee;
+            text-decoration: none;
+            font-size: 14px;
+            border: 1px solid #22d3ee;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: 0.3s;
+        }
+
+        .nav-buttons a:hover {
+            background: #22d3ee;
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="nav-buttons">
+            <a href="/dashboard">← Back to SOC Dashboard</a>
+            <a href="/">Home</a>
+        </div>
+
+        <h1>🛡️ Network Intrusion Detection System</h1>
+
+        <h2>Manual Detection Input</h2>
+
+        <form id="manualForm">
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label>Count</label>
+                    <input type="number" name="count" value="00" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Serror Rate</label>
+                    <input type="number" step="0.01" name="serror_rate" value="00" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Same Service Rate</label>
+                    <input type="number" step="0.01" name="same_srv_rate" value="00" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Diff Service Rate</label>
+                    <input type="number" step="0.01" name="dst_host_diff_srv_rate" value="00" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Same Src Port Rate</label>
+                    <input type="number" step="0.01" name="dst_host_same_src_port_rate" value="00" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Host Service Count</label>
+                    <input type="number" name="dst_host_srv_count" value="00" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Logged In</label>
+                    <select name="logged_in" required>
+                        <option value="" disabled selected hidden>Select</option>
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Failed Logins</label>
+                    <input type="number" name="num_failed_logins" value="00">
+                </div>
+
+                <div class="form-group">
+                    <label>Access Files</label>
+                    <input type="number" name="num_access_files" value="00">
+                </div>
+
+                <div class="form-group">
+                    <label>Root Shell</label>
+                    <select name="root_shell" required>
+                        <option value="" disabled selected hidden>Select</option>
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+
+            </div>
+            <button type="submit">Analyze Network Traffic</button>
+        </form>
+
+        <hr>
+
+        <h2>Bulk Dataset Upload (.CSV)</h2>
+
+        <form id="bulkForm">
+            <input type="file" name="file" accept=".csv" required
+                style="background:transparent; color:white; padding:5px 0;">
+            <button type="submit">Upload & Process Stream</button>
+        </form>
+
+        <!-- DYNAMIC AJAX VIEWS -->
+        <div class="result-box" id="resultBox">
+            <div id="statusLabel"></div>
+            <div style="margin-top:10px; color:#94a3b8;" id="outputMessage"></div>
+        </div>
+
+        <!-- THREAT PLAYBOOK CARD -->
+        <div class="playbook-card" id="playbookCard">
+            <h4>🛠️ Recommended Response Playbook</h4>
+            <p id="playbookAction" style="font-size: 14px; margin-bottom: 8px; color: #e2e8f0;"></p>
+            <div style="font-size: 12px; color: #94a3b8; font-weight: bold;">DEPLOYMENT MITIGATION COMMANDS:</div>
+            <div class="terminal-box" id="terminalCommands"></div>
+        </div>
+
+        <!-- BULK BREAKDOWN TABLE -->
+        <div class="table-box" id="tableBox">
+            <h3 style="text-align:center; margin-bottom:10px; color: #60a5fa;">📊 Bulk Threat Assessment Breakdown</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Attack Classification Label</th>
+                        <th>Aggregated Vector Count</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        // Prevent Page Reload & Handle Form via AJAX
+        document.getElementById("manualForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            let formData = new FormData(this);
+            hideResults();
+
+            fetch("/predict", { method: "POST", body: formData, credentials: "same-origin" })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) { showAssessment(data); }
+                    else { alert("Analysis failed: " + data.error); }
+                }).catch(err => console.error("Error:", err));
+        });
+
+        document.getElementById("bulkForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            let formData = new FormData(this);
+            hideResults();
+
+            fetch("/upload_csv", { method: "POST", body: formData, credentials: "same-origin" })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAssessment(data);
+                        if (data.summary) {
+                            let tbody = document.getElementById("tableBody");
+                            tbody.innerHTML = "";
+                            for (const [key, value] of Object.entries(data.summary)) {
+                                tbody.innerHTML += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                            }
+                            document.getElementById("tableBox").style.display = "block";
+                        }
+                    } else { alert("Bulk processing failed: " + data.error); }
+                }).catch(err => console.error("Error:", err));
+        });
+
+        function hideResults() {
+            document.getElementById("resultBox").style.display = "none";
+            document.getElementById("playbookCard").style.display = "none";
+            document.getElementById("tableBox").style.display = "none";
+        }
+
+        function showAssessment(data) {
+            let resBox = document.getElementById("resultBox");
+            let statusLabel = document.getElementById("statusLabel");
+            let outputMsg = document.getElementById("outputMessage");
+
+            resBox.style.display = "block";
+            outputMsg.innerText = data.output;
+
+            if (data.status === "safe") {
+                statusLabel.className = "safe";
+                statusLabel.innerHTML = "✅ SYSTEM STATUS: SECURE";
+                document.getElementById("playbookCard").style.borderLeft = "5px solid #22c55e";
+            } else {
+                statusLabel.className = "danger";
+                statusLabel.innerHTML = "⚠️ ALERT: INTRUSION VECTOR DETECTED";
+                document.getElementById("playbookCard").style.borderLeft = "5px solid #ef4444";
+            }
+
+            if (data.playbook) {
+                document.getElementById("playbookAction").innerText = data.playbook.action;
+                document.getElementById("terminalCommands").innerText = data.playbook.commands;
+                document.getElementById("playbookCard").style.display = "block";
+            }
+        }
+    </script>
+</body>
+
+</html>

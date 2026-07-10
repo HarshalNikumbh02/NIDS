@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>NIDS - Cyber Defense System</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+/* COLOR SYSTEM (UPGRADED) */
+:root{
+--primary:#22d3ee;      /* cyan */
+--secondary:#8b5cf6;    /* purple */
+--accent:#ec4899;       
+--bg-dark:#020617;
+--bg-mid:#0b1120;
+--bg-light:#111827;
+--border:rgba(56,189,248,0.15);
+}
+
+/* BODY */
+body{
+font-family:'Poppins',sans-serif;
+background:linear-gradient(135deg,var(--bg-dark),var(--bg-mid),var(--bg-light));
+color:white;
+overflow-x:hidden;
+min-height:100vh;
+display:flex;
+flex-direction:column;
+}
+
+/* 🌈 PREMIUM GLOW BACKGROUND */
+body::before{
+content:"";
+position:fixed;
+width:100%;
+height:100%;
+background:
+radial-gradient(circle at 20% 25%, var(--primary), transparent 45%),
+radial-gradient(circle at 80% 30%, var(--secondary), transparent 45%),
+radial-gradient(circle at 50% 85%, var(--accent), transparent 45%);
+filter:blur(150px);
+opacity:0.4;
+animation:moveGlow 18s infinite alternate ease-in-out;
+z-index:0;
+}
+
+/* EXTRA DEPTH */
+body::after{
+content:"";
+position:fixed;
+width:100%;
+height:100%;
+background:
+radial-gradient(circle at 60% 40%, rgba(255,255,255,0.05), transparent 60%);
+z-index:0;
+}
+
+@keyframes moveGlow{
+0%{transform:translate(0,0);}
+100%{transform:translate(60px,-40px);}
+}
+
+/* NAVBAR */
+.navbar{
+background:rgba(2,6,23,0.5);
+backdrop-filter:blur(14px);
+border-bottom:1px solid var(--border);
+padding:15px 40px;
+z-index:2;
+position:relative;
+}
+
+.logo{
+font-weight:700;
+color:var(--primary);
+font-size:22px;
+}
+
+/* NAV LINKS */
+.nav-links a{
+color:white;
+margin:0 14px;
+text-decoration:none;
+position:relative;
+transition:0.3s;
+}
+
+.nav-links a::after{
+content:"";
+position:absolute;
+width:0%;
+height:2px;
+left:0;
+bottom:-4px;
+background:linear-gradient(90deg,var(--primary),var(--secondary));
+transition:0.4s;
+}
+
+.nav-links a:hover::after{
+width:100%;
+}
+
+.nav-links a:hover{
+color:var(--primary);
+}
+
+/* HERO */
+.hero{
+flex:1;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+text-align:center;
+z-index:2;
+position:relative;
+padding:40px 20px;
+}
+
+.hero h1{
+font-size:52px;
+font-weight:700;
+}
+
+/* GRADIENT TEXT FIX */
+.hero span{
+color:var(--primary);
+background:linear-gradient(90deg,var(--primary),var(--secondary));
+-webkit-background-clip:text;
+background-clip:text;
+-webkit-text-fill-color:transparent;
+color:transparent;
+display:inline-block;
+}
+
+/* TEXT */
+.hero p{
+opacity:0.75;
+font-size:17px;
+margin-top:12px;
+}
+
+/* BUTTON */
+.btn-main{
+margin-top:28px;
+background:linear-gradient(90deg,var(--primary),var(--secondary));
+border:none;
+padding:14px 34px;
+border-radius:12px;
+color:white;
+font-weight:600;
+transition:0.35s;
+}
+
+.btn-main:hover{
+transform:translateY(-5px) scale(1.03);
+box-shadow:0 15px 40px rgba(56,189,248,0.5);
+}
+
+/* FOOTER */
+.footer{
+text-align:center;
+padding:15px;
+opacity:0.5;
+border-top:1px solid var(--border);
+}
+
+/* MOBILE */
+@media(max-width:768px){
+.hero h1{
+font-size:34px;
+}
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar d-flex justify-content-between align-items-center">
+
+<div class="logo">NIDS</div>
+
+<div class="nav-links">
+<a href="/">Home</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/detect">Detect</a>
+
+{% if session.get('user') %}
+<a href="/logout">Logout</a>
+{% else %}
+<a href="/login">Login</a>
+{% endif %}
+</div>
+
+</div>
+
+<!-- HERO -->
+<div class="hero">
+
+<h1><span>Network Intrusion</span> Detection</h1>
+<p>AI-powered cyber security monitoring system</p>
+
+<a href="/detect" class="btn btn-main">Start Detection</a>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+© 2026 NIDS | Cyber Defense System
+</div>
+
+</body>
+</html>
