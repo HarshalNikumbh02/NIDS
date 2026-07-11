@@ -177,6 +177,14 @@ def predict_final(X, X_raw, columns):
 
 # ---------------- ROUTES ----------------
 @app.route("/")
+@app.route("/admin")
+def admin():
+    if "user" not in session:
+        return redirect("/login")
+    users_data = list(users_collection.find({}))
+    
+    return render_template("admin.html", users=users_data)
+
 def home():
     return render_template("index.html")
 
